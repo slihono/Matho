@@ -1,0 +1,22 @@
+{
+  "name": "math-tutor-bot",
+  "version": "1.0.0",
+  "description": "A calculus/discrete-math/algebra/trig/linear-algebra tutor bot: web app, Discord bot, and Telegram bot sharing one core.",
+  "main": "web/server.js",
+  "scripts": {
+    "web": "node web/server.js",
+    "discord": "node discord/bot.js",
+    "telegram": "node telegram/bot.js",
+    "all": "concurrently \"npm:web\" \"npm:discord\" \"npm:telegram\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Math Tutor</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #171a23;
+    --bubble-user: #3b5bfd;
+    --bubble-bot: #232734;
+    --text: #e7e9ee;
+    --muted: #8b8fa3;
+    --accent: #7c9bff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 16px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid #262a37;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 {
+    font-size: 16px;
+    margin: 0;
+    font-weight: 600;
+  }
+  header p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  #resetBtn {
+    background: none;
+    border: 1px solid #333747;
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  #resetBtn:hover { color: var(--text); border-color: var(--accent); }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--panel);
+    padding: 0 20px;
+    border-bottom: 1px solid #262a37;
+  }
+  .tab {
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .view { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  .view.active { display: flex; }
+  #exerciseView {
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  .ex-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .ex-controls select, .ex-controls button {
+    background: #1f2330;
+    border: 1px solid #333747;
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13.5px;
+  }
+  .ex-controls button {
+    background: var(--accent);
+    color: #0f1117;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+  }
+  .ex-controls button:disabled { opacity: 0.5; cursor: default; }
+  #score {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  #problemCard {
+    background: var(--bubble-bot);
+    border-radius: 12px;
+    padding: 18px;
+    font-size: 15px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    margin-bottom: 14px;
+    min-height: 60px;
+  }
+  #answerForm {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  #answerInput {
+    flex: 1;
+    background: #1f2330;
+    border: 1px solid #333747;
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  #answerInput:focus { outline: none; border-color: var(--accent); }
+  #answerForm button {
+    background: var(--accent);
+    color: #0f1117;
+    border: none;
+    padding: 0 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #feedbackCard {
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    display: none;
+  }
+  #feedbackCard.correct { background: #16321f; border: 1px solid #2a6b3f; }
+  #feedbackCard.incorrect { background: #331a1a; border: 1px solid #7a3232; }
+  #feedbackCard .verdict { font-weight: 700; margin-bottom: 6px; }
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .msg {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    font-size: 14.5px;
+  }
+  .user {
+    align-self: flex-end;
+    background: var(--bubble-user);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .bot {
+    align-self: flex-start;
+    background: var(--bubble-bot);
+    border-bottom-left-radius: 4px;
+  }
+  .subjects {
+    align-self: flex-start;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 4px 4px 10px;
+  }
+  footer {
+    padding: 16px 20px 20px;
+    background: var(--panel);
+    border-top: 1px solid #262a37;
+  }
+  #form {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    gap: 8px;
+  }
+  #input {
+    flex: 1;
+    background: #1f2330;
+    border: 1px solid #333747;
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 14.5px;
+    resize: none;
+  }
+  #input:focus { outline: none; border-color: var(--accent); }
+  #sendBtn {
+    background: var(--accent);
+    color: #0f1117;
+    border: none;
+    padding: 0 18px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #sendBtn:disabled { opacity: 0.5; cursor: default; }
+  .typing { color: var(--muted); font-size: 13px; padding-left: 4px; }
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Math Tutor</h1>
+      <p>Calc 1 & 2 · Discrete Math · Algebra · Trigonometry · Linear Algebra</p>
+    </div>
+    <button id="resetBtn">Reset chat</button>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="chat">Chat</div>
+    <div class="tab" data-tab="exercises">Exercises</div>
+  </div>
+
+  <div id="chatView" class="view active">
+    <div id="chat">
+      <div class="subjects">Ask me anything from those five subjects — I'll usually walk you through it step by step rather than just handing you the answer. Say "just give me the answer" if you want the full solution straight away.</div>
+    </div>
+
+    <footer>
+      <form id="form">
+        <textarea id="input" rows="1" placeholder="Ask a question... (Shift+Enter for new line)"></textarea>
+        <button id="sendBtn" type="submit">Send</button>
+      </form>
+    </footer>
+  </div>
+
+  <div id="exerciseView" class="view">
+    <div class="ex-controls">
+      <select id="subjectSelect"></select>
+      <select id="difficultySelect">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+      <button id="newExerciseBtn">New problem</button>
+      <div id="score">0 / 0</div>
+    </div>
+
+    <div id="problemCard">Pick a subject and difficulty, then click "New problem".</div>
+
+    <form id="answerForm" style="display:none;">
+      <input id="answerInput" type="text" placeholder="Your answer..." autocomplete="off" />
+      <button type="submit">Check</button>
+    </form>
+
+    <div id="feedbackCard"></div>
+  </div>
+
+<script>
+  const chat = document.getElementById('chat');
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  // One session id per browser tab (kept in sessionStorage so a refresh
+  // doesn't lose context, but a new tab starts fresh).
+  let sessionId = sessionStorage.getItem('sessionId');
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    sessionStorage.setItem('sessionId', sessionId);
+  }
+
+  function addMessage(text, who) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + who;
+    div.textContent = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
+
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const message = input.value.trim();
+    if (!message) return;
+
+    addMessage(message, 'user');
+    input.value = '';
+    input.style.height = 'auto';
+    sendBtn.disabled = true;
+
+    const typing = document.createElement('div');
+    typing.className = 'typing';
+    typing.textContent = 'Tutor is thinking...';
+    chat.appendChild(typing);
+    chat.scrollTop = chat.scrollHeight;
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message }),
+      });
+      const data = await res.json();
+      typing.remove();
+      if (data.error) {
+        addMessage('Error: ' + data.error, 'bot');
+      } else {
+        addMessage(data.reply, 'bot');
+      }
+    } catch (err) {
+      typing.remove();
+      addMessage('Network error — is the server running?', 'bot');
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  });
+
+  resetBtn.addEventListener('click', async () => {
+    await fetch('/api/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId }),
+    });
+    chat.innerHTML = '<div class="subjects">Chat reset. Ask me anything from Calc 1/2, Discrete Math, Algebra, Trig, or Linear Algebra.</div>';
+  });
+
+  // ---- Tabs ----
+  const tabs = document.querySelectorAll('.tab');
+  const views = { chat: document.getElementById('chatView'), exercises: document.getElementById('exerciseView') };
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      tabs.forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      Object.values(views).forEach((v) => v.classList.remove('active'));
+      views[tab.dataset.tab].classList.add('active');
+    });
+  });
+
+  // ---- Exercises ----
+  const subjectSelect = document.getElementById('subjectSelect');
+  const difficultySelect = document.getElementById('difficultySelect');
+  const newExerciseBtn = document.getElementById('newExerciseBtn');
+  const problemCard = document.getElementById('problemCard');
+  const answerForm = document.getElementById('answerForm');
+  const answerInput = document.getElementById('answerInput');
+  const feedbackCard = document.getElementById('feedbackCard');
+  const scoreEl = document.getElementById('score');
+
+  fetch('/api/subjects')
+    .then((r) => r.json())
+    .then((data) => {
+      subjectSelect.innerHTML = data.subjects
+        .map((s) => `<option value="${s}">${s}</option>`)
+        .join('');
+    });
+
+  function updateScore(score) {
+    scoreEl.textContent = `${score.correct} / ${score.total}`;
+  }
+
+  newExerciseBtn.addEventListener('click', async () => {
+    newExerciseBtn.disabled = true;
+    problemCard.textContent = 'Generating a problem...';
+    feedbackCard.style.display = 'none';
+    answerForm.style.display = 'none';
+    try {
+      const res = await fetch('/api/exercise/new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          subject: subjectSelect.value,
+          difficulty: difficultySelect.value,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        problemCard.textContent = 'Error: ' + data.error;
+      } else {
+        problemCard.textContent = data.problem;
+        answerForm.style.display = 'flex';
+        answerInput.value = '';
+        answerInput.focus();
+        updateScore(data.score);
+      }
+    } catch (err) {
+      problemCard.textContent = 'Network error — is the server running?';
+    } finally {
+      newExerciseBtn.disabled = false;
+    }
+  });
+
+  answerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const answer = answerInput.value.trim();
+    if (!answer) return;
+
+    const submitBtn = answerForm.querySelector('button');
+    submitBtn.disabled = true;
+    feedbackCard.style.display = 'block';
+    feedbackCard.className = '';
+    feedbackCard.textContent = 'Checking...';
+
+    try {
+      const res = await fetch('/api/exercise/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, answer }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        feedbackCard.className = 'incorrect';
+        feedbackCard.textContent = 'Error: ' + data.error;
+        return;
+      }
+      feedbackCard.className = data.correct ? 'correct' : 'incorrect';
+      const verdict = data.correct ? "✓ Correct!" : "✗ Not quite";
+      feedbackCard.innerHTML =
+        `<div class="verdict">${verdict}</div>` +
+        data.feedback +
+        (!data.correct ? `\n\nCorrect answer: ${data.correctAnswer}` : '');
+      updateScore(data.score);
+      answerForm.style.display = 'none';
+    } catch (err) {
+      feedbackCard.className = 'incorrect';
+      feedbackCard.textContent = 'Network error — is the server running?';
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
