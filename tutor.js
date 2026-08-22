@@ -1,194 +1,335 @@
-// core/tutor.js
-// Shared "brain" for the math tutor bot. Web, Discord, and Telegram
-// front-ends all call askTutor() from this file, so the teaching
-// behavior stays identical everywhere and only needs to be tuned once.
+/**
+ * Matho Central Tutor Brain (core/tutor.js) - Version 2 (English)
+ * Implements Socratic Tutoring (Gemini + Wolfram Alpha) and Direct Solving (Groq + DeepSeek R1).
+ */
 
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// In-memory Conversation Store (grouped by sessionId)
+const conversationHistory = new Map();
 
-const MODEL = 'claude-sonnet-4-6';
+// Maximum messages to keep in history to avoid high token usage / cost
+const MAX_HISTORY = 20;
 
-const SYSTEM_PROMPT = `You are a patient, encouraging math tutor covering exactly these subjects:
-- Calculus 1 (limits, derivatives, applications of derivatives, intro integrals)
-- Calculus 2 (integration techniques, series/sequences, polar/parametric, applications)
-- Discrete Math (logic, proofs, sets, combinatorics, graph theory, induction, recursion)
-- Algebra (equations, functions, polynomials, exponents/logs, systems of equations)
-- Trigonometry (unit circle, identities, trig equations, graphs of trig functions)
-- Linear Algebra (vectors, matrices, determinants, eigenvalues/eigenvectors, vector spaces, linear transformations)
+// Socratic System Prompt (tutor mode)
+const SYSTEM_PROMPT = `
+You are Matho, an exceptional, patient, encouraging, and pedagogical mathematics tutor.
+Your role is to guide the student using the SOCRATIC METHOD.
 
-TEACHING STYLE:
-- Default to a Socratic approach: don't just hand over the final answer to a homework-shaped problem. Ask a guiding question, give a hint, or walk through one step and ask the student to do the next.
-- If the student explicitly asks for a full worked solution, or says they've already tried and are stuck, give the complete step-by-step solution clearly.
-- Always show your work step by step — never skip algebra steps that a struggling student would stumble on.
-- Check understanding periodically ("Does that step make sense?" / "Want to try the next part?").
-- Keep explanations concise per turn. Long unbroken lectures lose students — prefer short exchanges over one giant wall of text.
-- Use plain-text math notation (x^2, sqrt(x), integral of f(x) dx, sum from i=1 to n) rather than LaTeX, since this bot runs on Discord and Telegram where LaTeX doesn't render.
-- If a student's answer is wrong, don't just say "wrong" — point at the specific step where the error likely happened.
-- If asked something outside these six subjects, gently say that's outside what this tutor covers and steer back.
-- Be warm and encouraging, but don't pad with empty praise — be honest when something is actually incorrect.
-- Proactively offer practice: after explaining a concept, offer the student a short practice problem on it ("Want to try one?"). If they say yes, give ONE problem, wait for their attempt, then check it and explain any mistake before offering another. Don't dump multiple problems at once unless asked for a batch.`;
+Fundamental Behavioral Rules:
+1. NEVER GIVE THE DIRECT ANSWER to a problem. Even if the student insists.
+2. Break down complex problems into simple, manageable sub-steps.
+3. Ask only one guiding question at a time to lead the student to the next step of their own reasoning.
+4. Gently point out logical or calculation errors, and ask the student to re-analyze that specific part.
+5. Sincerely praise efforts and successful steps taken.
+6. Once the student has found the correct solution on their own, proactively suggest a short similar practice problem to consolidate their understanding ("Would you like to try a similar exercise?").
+7. Always remain warm, encouraging, and supportive. Respond in the same language as the user's query (e.g. French if they write in French, English if they write in English).
+`;
+
+// Direct Solver System Prompt (solve mode)
+const DIRECT_PROMPT = `
+You are Matho (Direct Solver Mode), a university-level mathematics expert.
+Your role is to DIRECTLY, QUICKLY, and ultra-clearly provide the exact final answer to a problem, without any socratic tutoring.
+
+Fundamental Behavioral Rules:
+1. Give the exact result at the very beginning of your message (e.g., "The answer is: **x = 5**").
+2. Immediately follow with a clear, concise step-by-step mathematical demonstration explaining the logic or formulas used to find the result.
+3. Use Markdown and LaTeX (wrapped in $$ or $ for inline) for high readability.
+4. Do not ask questions to the student; conclude directly.
+5. Respond in the same language as the user's query (e.g., French if they write in French, English if they write in English).
+`;
 
 /**
- * Send a conversation to Claude and get the tutor's reply.
- * @param {Array<{role: 'user'|'assistant', content: string}>} history
- *   Full conversation so far, oldest first. Each front-end is responsible
- *   for keeping and passing this (Claude is stateless between calls).
- * @returns {Promise<string>} the tutor's reply text
+ * Helper to get Gemini API Client
  */
-async function askTutor(history) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error(
-      'ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key.'
-    );
+function getGeminiClient(customApiKey) {
+  const apiKey = customApiKey || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing Gemini API Key. Please configure it in your settings.");
   }
-
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT,
-    messages: history,
-  });
-
-  const textBlock = response.content.find((block) => block.type === 'text');
-  return textBlock ? textBlock.text : "(I didn't get a text response — try again.)";
-}
-
-const SUBJECTS = [
-  'Calculus 1',
-  'Calculus 2',
-  'Discrete Math',
-  'Algebra',
-  'Trigonometry',
-  'Linear Algebra',
-];
-
-const EXERCISE_SYSTEM_PROMPT = `You generate a single math practice problem for a student, for one of these subjects: ${SUBJECTS.join(', ')}.
-Respond with ONLY valid JSON, no markdown fences, no preamble, in exactly this shape:
-{"problem": "the problem statement, plain text math notation (x^2, sqrt(x), etc, no LaTeX)", "answer": "the correct final answer, as a short plain-text string", "solution": "a brief step-by-step solution, plain text"}
-The problem must match the requested subject and difficulty. Keep the problem statement to 1-3 sentences.`;
-
-const CHECK_SYSTEM_PROMPT = `You grade a student's answer to a math practice problem.
-You will be given the problem, the correct answer/solution, and the student's submitted answer.
-Respond with ONLY valid JSON, no markdown fences, no preamble, in exactly this shape:
-{"correct": true or false, "feedback": "1-3 sentences: if correct, brief confirmation; if incorrect, point at the specific step or concept where the error likely happened, without just restating the full solution unless the student got it very wrong"}
-Be lenient about equivalent forms of the same correct answer (e.g. "1/2" vs "0.5", "2x" vs "x*2").`;
-
-function extractJson(text) {
-  const cleaned = text.replace(/^```json\s*|^```\s*|```\s*$/gm, '').trim();
-  return JSON.parse(cleaned);
+  return new GoogleGenerativeAI(apiKey);
 }
 
 /**
- * Generate one practice problem for a subject/difficulty.
- * @param {string} subject one of SUBJECTS
- * @param {string} difficulty e.g. 'easy' | 'medium' | 'hard'
- * @returns {Promise<{problem: string, answer: string, solution: string}>}
+ * Query Wolfram Alpha Short Answers API
  */
-async function generateExercise(subject, difficulty) {
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 512,
-    system: EXERCISE_SYSTEM_PROMPT,
-    messages: [
-      {
-        role: 'user',
-        content: `Subject: ${subject}\nDifficulty: ${difficulty}\nGenerate one problem.`,
-      },
-    ],
-  });
-  const textBlock = response.content.find((b) => b.type === 'text');
-  return extractJson(textBlock.text);
-}
-
-/**
- * Grade a student's submitted answer against the stored solution.
- * @returns {Promise<{correct: boolean, feedback: string}>}
- */
-async function checkExercise(problem, correctAnswer, solution, studentAnswer) {
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 400,
-    system: CHECK_SYSTEM_PROMPT,
-    messages: [
-      {
-        role: 'user',
-        content: `Problem: ${problem}\nCorrect answer: ${correctAnswer}\nSolution: ${solution}\nStudent's answer: ${studentAnswer}`,
-      },
-    ],
-  });
-  const textBlock = response.content.find((b) => b.type === 'text');
-  return extractJson(textBlock.text);
-}
-
-// Tracks generated-but-not-yet-answered exercises and running score,
-// keyed by the same session key used for ConversationStore.
-class ExerciseStore {
-  constructor() {
-    this.pending = new Map(); // sessionId -> {problem, answer, solution, subject}
-    this.scores = new Map(); // sessionId -> {correct, total}
+async function queryWolframAlpha(query) {
+  const appId = process.env.WOLFRAM_APP_ID;
+  if (!appId) {
+    console.warn("WOLFRAM_APP_ID is not configured. Direct IA calculation only.");
+    return null;
   }
 
-  setPending(key, exercise) {
-    this.pending.set(key, exercise);
-  }
-
-  getPending(key) {
-    return this.pending.get(key);
-  }
-
-  recordResult(key, wasCorrect) {
-    const score = this.scores.get(key) || { correct: 0, total: 0 };
-    score.total += 1;
-    if (wasCorrect) score.correct += 1;
-    this.scores.set(key, score);
-    return score;
-  }
-
-  getScore(key) {
-    return this.scores.get(key) || { correct: 0, total: 0 };
-  }
-}
-
-// Simple in-memory per-conversation history store, shared helper so
-// every front-end doesn't reinvent trimming logic.
-// Keyed by an arbitrary string (user id, channel id, session id, etc.)
-const MAX_TURNS = 20; // keep last 20 messages (10 exchanges) per conversation
-
-class ConversationStore {
-  constructor() {
-    this.conversations = new Map();
-  }
-
-  get(key) {
-    if (!this.conversations.has(key)) {
-      this.conversations.set(key, []);
+  try {
+    const url = `https://api.wolframalpha.com/v1/result?i=${encodeURIComponent(query)}&appid=${appId}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn(`Wolfram Alpha returned status: ${response.status}`);
+      return null;
     }
-    return this.conversations.get(key);
+    const resultText = await response.text();
+    return resultText.trim();
+  } catch (error) {
+    console.error("Error calling Wolfram Alpha API:", error);
+    return null;
   }
+}
 
-  push(key, role, content) {
-    const history = this.get(key);
-    history.push({ role, content });
-    if (history.length > MAX_TURNS) {
-      history.splice(0, history.length - MAX_TURNS);
+/**
+ * Math Router - Asks Gemini if the user's message requires a calculation
+ * and translates it into a Wolfram Alpha compatible query.
+ */
+async function routeAndTranslate(message, customApiKey) {
+  try {
+    const genAI = getGeminiClient(customApiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const routerPrompt = `
+Analyze the following user message: "${message}"
+Determine if this message contains a math calculation request, an equation to solve, an integral, a derivative, a simplification, or any math question requiring precise computation.
+
+Respond STRICTLY in JSON format with the following structure:
+{
+  "needsCalculation": true or false,
+  "wolframQuery": "the translated mathematical formula in English for Wolfram Alpha (e.g., 'integrate x^2 from 0 to 5' or 'solve 3x + 5 = 12') or null if needsCalculation is false"
+}
+`;
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: routerPrompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    const responseText = result.response.text();
+    return JSON.parse(responseText);
+  } catch (error) {
+    console.error("Error in Math Router:", error);
+    return { needsCalculation: false, wolframQuery: null };
+  }
+}
+
+/**
+ * Retrieve or initialize history for a session
+ */
+function getHistory(sessionId) {
+  if (!conversationHistory.has(sessionId)) {
+    conversationHistory.set(sessionId, []);
+  }
+  return conversationHistory.get(sessionId);
+}
+
+/**
+ * Trim history to keep it within budget
+ */
+function trimHistory(history) {
+  if (history.length > MAX_HISTORY) {
+    history.splice(0, history.length - MAX_HISTORY);
+  }
+}
+
+/**
+ * Clear conversation history for a user
+ */
+function clearHistory(sessionId) {
+  conversationHistory.delete(sessionId);
+  return { success: true, message: "History cleared successfully!" };
+}
+
+/**
+ * Socratic Chat (Gemini + Wolfram Alpha)
+ */
+async function askTutor(sessionId, message, customApiKey = null) {
+  const history = getHistory(sessionId);
+  const genAI = getGeminiClient(customApiKey);
+  
+  // 1. Math Router: Should we calculate something with Wolfram Alpha?
+  const route = await routeAndTranslate(message, customApiKey);
+  let wolframResult = null;
+
+  if (route.needsCalculation && route.wolframQuery) {
+    console.log(`[Math Router] Wolfram query detected: "${route.wolframQuery}"`);
+    wolframResult = await queryWolframAlpha(route.wolframQuery);
+    if (wolframResult) {
+      console.log(`[Math Router] Wolfram result obtained: "${wolframResult}"`);
     }
-    return history;
   }
 
-  reset(key) {
-    this.conversations.set(key, []);
+  // 2. Prepare final prompt for Gemini
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  // Convert our local history to Gemini API format
+  const geminiHistory = history.map(msg => ({
+    role: msg.role === 'user' ? 'user' : 'model',
+    parts: [{ text: msg.content }]
+  }));
+
+  // Initialize Gemini chat with the system prompt
+  const chat = model.startChat({
+    history: geminiHistory,
+    systemInstruction: SYSTEM_PROMPT
+  });
+
+  // Inject Wolfram result in context if available
+  let finalUserMessage = message;
+  if (wolframResult) {
+    finalUserMessage = `[System Note: The exact mathematical calculation validated by Wolfram Alpha for this problem is: "${wolframResult}". Use it as absolute authority of the result but guide me in a Socratic way without giving it to me directly.]\n\n${message}`;
+  }
+
+  // Send message to chat
+  const result = await chat.sendMessage(finalUserMessage);
+  const responseText = result.response.text();
+
+  // Save to local history
+  history.push({ role: 'user', content: message });
+  history.push({ role: 'assistant', content: responseText });
+  trimHistory(history);
+
+  return {
+    response: responseText,
+    usedWolfram: !!wolframResult,
+    wolframQuery: route.wolframQuery
+  };
+}
+
+/**
+ * Direct Solver Chat (Groq + DeepSeek R1 / Llama 3.1)
+ */
+async function solveDirect(sessionId, message, customApiKey = null) {
+  const history = getHistory(sessionId);
+  const apiKey = customApiKey || process.env.GROQ_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("Missing Groq API Key for direct solver.");
+  }
+
+  try {
+    const groqHistory = history.map(msg => ({
+      role: msg.role === 'assistant' ? 'assistant' : 'user',
+      content: msg.content
+    }));
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'deepseek-r1-distill-llama-70b',
+        messages: [
+          { role: 'system', content: DIRECT_PROMPT },
+          ...groqHistory,
+          { role: 'user', content: message }
+        ],
+        temperature: 0.2
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Groq API Error: ${response.status} - ${errText}`);
+    }
+
+    const data = await response.json();
+    let responseText = data.choices[0].message.content;
+
+    // Format thinking process from DeepSeek
+    let thinkingProcess = "";
+    if (responseText.includes("<think>")) {
+      const parts = responseText.split("</think>");
+      thinkingProcess = parts[0].replace("<think>", "").trim();
+      responseText = parts[1].trim();
+    }
+
+    // Save to history
+    history.push({ role: 'user', content: message });
+    history.push({ role: 'assistant', content: responseText });
+    trimHistory(history);
+
+    return {
+      response: responseText,
+      thinking: thinkingProcess || null
+    };
+  } catch (error) {
+    console.error("Error in Groq/DeepSeek direct solver:", error);
+    throw error;
+  }
+}
+
+/**
+ * Exercises Module - Generates a new math problem using Gemini
+ */
+async function generateExercise(subject, difficulty, customApiKey = null) {
+  try {
+    const genAI = getGeminiClient(customApiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `
+Generate a unique mathematics exercise on the topic: "${subject}" with difficulty level: "${difficulty}".
+Respond in the language of the request if specified, or detect context. Write math formulas in LaTeX (e.g. $f(x) = x^2$).
+
+Respond STRICTLY in JSON format with the following structure:
+{
+  "problem": "Clear statement of the exercise, using LaTeX for formulas (e.g. $f(x) = x^2$)",
+  "correctAnswer": "The exact expected answer (e.g. '5', '2x + 3', '1/2')",
+  "hints": ["Hint 1 to help the student if needed", "Hint 2 slightly more specific"]
+}
+`;
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    return JSON.parse(result.response.text());
+  } catch (error) {
+    console.error("Error generating exercise:", error);
+    throw error;
+  }
+}
+
+/**
+ * Exercises Module - Evaluates student answer
+ */
+async function checkExercise(problem, userAnswer, correctAnswer, customApiKey = null) {
+  try {
+    const genAI = getGeminiClient(customApiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `
+Evaluate a student's answer to a mathematics exercise.
+Exercise: "${problem}"
+Expected answer: "${correctAnswer}"
+Student's answer: "${userAnswer}"
+
+Determine if the answer is correct (or mathematically equivalent, e.g., if they input "0.5" instead of "1/2").
+Provide a warm, constructive, pedagogical explanation of 2-3 sentences max. Respond in the language used by the student's answer or the problem.
+
+Respond STRICTLY in JSON format with the following structure:
+{
+  "isCorrect": true or false,
+  "explanation": "Your pedagogical feedback explaining why they are correct or where they went wrong"
+}
+`;
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    return JSON.parse(result.response.text());
+  } catch (error) {
+    console.error("Error evaluating exercise:", error);
+    return { isCorrect: false, explanation: "Could not evaluate the answer at this moment." };
   }
 }
 
 module.exports = {
   askTutor,
-  ConversationStore,
-  SYSTEM_PROMPT,
-  SUBJECTS,
+  solveDirect,
+  clearHistory,
   generateExercise,
   checkExercise,
-  ExerciseStore,
+  SYSTEM_PROMPT,
+  DIRECT_PROMPT
 };

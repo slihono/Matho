@@ -1,94 +1,115 @@
-// web/server.js
-require('dotenv').config();
+/**
+ * Matho Web Server (server.js)
+ * Serves the PWA web client and acts as a gateway proxy for Gemini + Wolfram Alpha + Groq.
+ */
+
 const express = require('express');
 const path = require('path');
-const {
-  askTutor,
-  ConversationStore,
-  SUBJECTS,
-  generateExercise,
-  checkExercise,
-  ExerciseStore,
-} = require('../core/tutor');
+const tutor = require('./tutor-v2');
+
+// Configure environment variables (loads .env if in local dev)
+require('dotenv').config();
 
 const app = express();
-const PORT = process.env.WEB_PORT || 3000;
-const store = new ConversationStore();
-const exerciseStore = new ExerciseStore();
+const PORT = process.env.PORT || 3000;
 
+// Enable JSON parser
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
-// One session per browser tab, via a client-generated id.
-app.post('/api/chat', async (req, res) => {
+// Serve static web app assets from root
+app.use(express.static(__dirname));
+
+// Serve files specifically from the root path
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/manifest.json', (req, res) => {
+  res.sendFile(path.join(__dirname, 'manifest.json'));
+});
+
+app.get('/service-worker.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'service-worker.js'));
+});
+
+// API Gateway Endpoints
+
+// 1. Socratic Tutor (Gemini + Wolfram Alpha)
+app.post('/api/chat/tutor', async (req, res) => {
+  const { message, customApiKey } = req.body;
+  if (!message) {
+    return res.status(400).json({ error: "Empty message." });
+  }
+
+  // Identify user session
+  const sessionId = req.headers['x-session-id'] || 'global-web-tutor-session';
+
   try {
-    const { sessionId, message } = req.body;
-    if (!sessionId || !message) {
-      return res.status(400).json({ error: 'sessionId and message are required' });
-    }
-
-    store.push(sessionId, 'user', message);
-    const history = store.get(sessionId);
-    const reply = await askTutor(history);
-    store.push(sessionId, 'assistant', reply);
-
-    res.json({ reply });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message || 'Something went wrong.' });
+    const result = await tutor.askTutor(sessionId, message, customApiKey);
+    res.json(result);
+  } catch (error) {
+    console.error("Socratic Error:", error);
+    res.status(500).json({ error: error.message || "An error occurred during the call." });
   }
 });
 
-app.post('/api/reset', (req, res) => {
-  const { sessionId } = req.body;
-  if (sessionId) store.reset(sessionId);
-  res.json({ ok: true });
+// 2. Direct Solver (Groq + DeepSeek R1)
+app.post('/api/chat/solve', async (req, res) => {
+  const { message, customApiKey } = req.body;
+  if (!message) {
+    return res.status(400).json({ error: "Empty message." });
+  }
+
+  const sessionId = req.headers['x-session-id'] || 'global-web-solve-session';
+
+  try {
+    const result = await tutor.solveDirect(sessionId, message, customApiKey);
+    res.json(result);
+  } catch (error) {
+    console.error("Direct Solve Error:", error);
+    res.status(500).json({ error: error.message || "An error occurred on the resolution API." });
+  }
 });
 
-app.get('/api/subjects', (req, res) => {
-  res.json({ subjects: SUBJECTS });
+// 3. Reset Session History
+app.post('/api/chat/reset', (req, res) => {
+  const tutorSession = 'global-web-tutor-session';
+  const solveSession = 'global-web-solve-session';
+  
+  tutor.clearHistory(tutorSession);
+  tutor.clearHistory(solveSession);
+  
+  res.json({ success: true, message: "History reset successfully." });
 });
 
+// 4. Generate New Exercise
 app.post('/api/exercise/new', async (req, res) => {
+  const { subject, difficulty, customApiKey } = req.body;
   try {
-    const { sessionId, subject, difficulty } = req.body;
-    if (!sessionId || !subject || !difficulty) {
-      return res.status(400).json({ error: 'sessionId, subject, and difficulty are required' });
-    }
-    const exercise = await generateExercise(subject, difficulty);
-    exerciseStore.setPending(sessionId, { ...exercise, subject });
-    res.json({ problem: exercise.problem, score: exerciseStore.getScore(sessionId) });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message || 'Could not generate an exercise.' });
+    const exercise = await tutor.generateExercise(subject, difficulty, customApiKey);
+    res.json(exercise);
+  } catch (error) {
+    console.error("Exercise Generation Error:", error);
+    res.status(500).json({ error: "Unable to generate the exercise." });
   }
 });
 
+// 5. Submit Exercise Response
 app.post('/api/exercise/submit', async (req, res) => {
+  const { problem, userAnswer, correctAnswer, customApiKey } = req.body;
   try {
-    const { sessionId, answer } = req.body;
-    if (!sessionId || !answer) {
-      return res.status(400).json({ error: 'sessionId and answer are required' });
-    }
-    const pending = exerciseStore.getPending(sessionId);
-    if (!pending) {
-      return res.status(400).json({ error: 'No pending exercise — generate one first.' });
-    }
-    const result = await checkExercise(pending.problem, pending.answer, pending.solution, answer);
-    const score = exerciseStore.recordResult(sessionId, result.correct);
-    res.json({
-      correct: result.correct,
-      feedback: result.feedback,
-      correctAnswer: pending.answer,
-      solution: pending.solution,
-      score,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message || 'Could not grade the exercise.' });
+    const feedback = await tutor.checkExercise(problem, userAnswer, correctAnswer, customApiKey);
+    res.json(feedback);
+  } catch (error) {
+    console.error("Evaluation Error:", error);
+    res.status(500).json({ error: "Unable to evaluate your answer." });
   }
 });
 
+// Start listening
 app.listen(PORT, () => {
-  console.log(`Math tutor web app running at http://localhost:${PORT}`);
+  console.log(`=========================================`);
+  console.log(`🚀 MATHO SERVER STARTED SUCCESSFULLY!`);
+  console.log(`🌐 Web Application: http://localhost:${PORT}`);
+  console.log(`=========================================`);
 });
