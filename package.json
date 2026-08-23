@@ -1,7 +1,7 @@
 {
   "name": "matho-math-tutor-bot",
   "version": "2.0.0",
-  "description": "Multi-Platform Math Tutor Bot upgraded to free Gemini + Wolfram Alpha and Groq + DeepSeek R1 engines.",
+  "description": "Multi-Platform Math Tutor Bot upgraded to free Gemini + Wolfram Alpha and Groq + GPT-OSS reasoning engines.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -23,7 +23,7 @@
     "socratic",
     "gemini",
     "groq",
-    "deepseek",
+    "gpt-oss",
     "wolfram",
     "discord",
     "telegram",

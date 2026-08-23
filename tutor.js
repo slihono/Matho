@@ -1,8 +1,8 @@
 /**
- * Matho Central Tutor Brain (tutor-v4.js)
+ * Matho Central Tutor Brain (tutor.js) - Version 6 (August 2026 Production-Ready)
  * High-performance math tutor brain.
- * Automatically routes messages starting with "/solve" to Groq (DeepSeek R1)
- * and normal messages to Gemini + Wolfram Alpha (Socratic).
+ * Uses Google's stable Gemini 3.7 Flash (released August 2026) for Socratic tutoring and exercises.
+ * Uses Groq's active GPT-OSS 120b (flagship reasoning model) for Direct Solving mode.
  */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -45,7 +45,7 @@ Core Rules of Behavior:
 function getGeminiClient(customApiKey) {
   const apiKey = customApiKey || process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("Missing Gemini API Key. Please configure it in your environment variables.");
+    throw new Error("Missing Gemini API Key. Please configure it in your Vercel Environment Variables.");
   }
   return new GoogleGenerativeAI(apiKey);
 }
@@ -77,11 +77,13 @@ async function queryWolframAlpha(query) {
 
 /**
  * Math Router - Translates query to Wolfram Alpha
+ * Uses gemini-3.7-flash (stable production model for 2026)
  */
 async function routeAndTranslate(message, customApiKey) {
   try {
     const genAI = getGeminiClient(customApiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Google AI Studio August 2026 stable GA model
+    const model = genAI.getGenerativeModel({ model: "gemini-3.7-flash" });
 
     const routerPrompt = `
 Analyze the following user message: "${message}"
@@ -125,7 +127,7 @@ function clearHistory(sessionId) {
 }
 
 /**
- * Socratic Chat (Gemini + Wolfram Alpha)
+ * Socratic Chat (Gemini 3.7 Flash + Wolfram Alpha)
  */
 async function askTutor(sessionId, message, customApiKey = null) {
   const history = getHistory(sessionId);
@@ -142,10 +144,12 @@ async function askTutor(sessionId, message, customApiKey = null) {
     }
   }
 
+  // Use the ultra-performant gemini-3.7-flash generally available in 2026
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
+    model: "gemini-3.7-flash",
     systemInstruction: SYSTEM_PROMPT
   });
+  
   const geminiHistory = history.map(msg => ({
     role: msg.role === 'user' ? 'user' : 'model',
     parts: [{ text: msg.content }]
@@ -175,7 +179,8 @@ async function askTutor(sessionId, message, customApiKey = null) {
 }
 
 /**
- * Direct Solver (Groq + DeepSeek R1)
+ * Direct Solver (Groq + GPT-OSS 120b flagship reasoning model)
+ * Replaces the deprecated deepseek-r1-distill-llama-70b
  */
 async function solveDirect(sessionId, message, customApiKey = null) {
   const history = getHistory(sessionId);
@@ -191,6 +196,7 @@ async function solveDirect(sessionId, message, customApiKey = null) {
       content: msg.content
     }));
 
+    // Replaced the decommissioned model with Groq's active 120B flagship reasoning model
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -198,7 +204,7 @@ async function solveDirect(sessionId, message, customApiKey = null) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'deepseek-r1-distill-llama-70b',
+        model: 'openai/gpt-oss-120b',
         messages: [
           { role: 'system', content: DIRECT_PROMPT },
           ...groqHistory,
@@ -217,6 +223,7 @@ async function solveDirect(sessionId, message, customApiKey = null) {
     let responseText = data.choices[0].message.content;
 
     let thinkingProcess = "";
+    // Handle thinking blocks if present in the response
     if (responseText.includes("<think>")) {
       const parts = responseText.split("</think>");
       thinkingProcess = parts[0].replace("<think>", "").trim();
@@ -230,7 +237,7 @@ async function solveDirect(sessionId, message, customApiKey = null) {
     // Format output beautifully if there is thinking process
     let finalResponse = responseText;
     if (thinkingProcess) {
-      finalResponse = `_<details><summary>Thinking Process (DeepSeek R1)</summary>${thinkingProcess.replace(/\n/g, '<br>')}</details>_\n\n${responseText}`;
+      finalResponse = `_<details><summary>Thinking Process (GPT-OSS)</summary>${thinkingProcess.replace(/\n/g, '<br>')}</details>_\n\n${responseText}`;
     }
 
     return {
@@ -244,12 +251,12 @@ async function solveDirect(sessionId, message, customApiKey = null) {
 }
 
 /**
- * Exercise Module - Generate Problem
+ * Exercise Module - Generate Problem (Gemini 3.7 Flash)
  */
 async function generateExercise(subject, difficulty, customApiKey = null) {
   try {
     const genAI = getGeminiClient(customApiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.7-flash" });
 
     const prompt = `
 Generate a unique math exercise about: "${subject}" with difficulty level: "${difficulty}".
@@ -276,12 +283,12 @@ Respond STRICTLY in JSON format with this structure:
 }
 
 /**
- * Exercise Module - Evaluate Answer
+ * Exercise Module - Evaluate Answer (Gemini 3.7 Flash)
  */
 async function checkExercise(problem, userAnswer, correctAnswer, customApiKey = null) {
   try {
     const genAI = getGeminiClient(customApiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.7-flash" });
 
     const prompt = `
 Evaluate a student's answer to a math exercise.
