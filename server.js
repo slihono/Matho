@@ -5,7 +5,7 @@
 
 const express = require('express');
 const path = require('path');
-const tutor = require('./tutor-v2');
+const tutor = require('./tutor');
 
 // Configure environment variables (loads .env if in local dev)
 require('dotenv').config();
