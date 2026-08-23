@@ -1,17 +1,17 @@
 {
   "name": "matho-math-tutor-bot",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Multi-Platform Math Tutor Bot upgraded to free Gemini + Wolfram Alpha and Groq + DeepSeek R1 engines.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "web": "node server.js",
     "discord": "node bot.js",
-    "telegram": "node bot(1).js",
-    "all": "node server.js & node bot.js & node bot(1).js"
+    "telegram": "node telegram-bot.js",
+    "all": "node server.js & node bot.js & node telegram-bot.js"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.11.0",
+    "@google/generative-ai": "^0.21.0",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
@@ -29,6 +29,6 @@
     "telegram",
     "pwa"
   ],
-  "author": "Seneve Lihono",
+  "author": "slihono",
   "license": "MIT"
 }

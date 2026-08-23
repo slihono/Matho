@@ -1,822 +1,821 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="author" content="Seneve lihono">
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Matho</title>
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#3b5bfd">
-
-<!-- Tailwind CSS is not needed since we preserve your original CSS style sheets -->
-<!-- KaTeX for beautiful math equations -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
-
-<!-- Marked.js for markdown rendering -->
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
-<style>
-:root {
---bg: #0f1117;
---panel: #171a23;
---bubble-bot: #232734;
---text: #e7e9ee;
---muted: #8b8fa3;
---accent: #7c9bff;
-}
-* { box-sizing: border-box; }
-body {
-margin: 0;
-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-background: var(--bg);
-color: var(--text);
-height: 100vh;
-display: flex;
-flex-direction: column;
-}
-header {
-padding: 16px 20px;
-background: var(--panel);
-border-bottom: 1px solid #262a37;
-display: flex;
-align-items: center;
-justify-content: space-between;
-}
-header h1 {
-font-size: 16px;
-margin: 0;
-font-weight: 600;
-}
-header p {
-margin: 2px 0 0;
-font-size: 12px;
-color: var(--muted);
-}
-#resetBtn {
-background: none;
-border: 1px solid #333747;
-color: var(--muted);
-padding: 6px 12px;
-border-radius: 6px;
-cursor: pointer;
-font-size: 12px;
-}
-#resetBtn:hover { color: var(--text); border-color: var(--accent); }
-.tabs {
-display: flex;
-gap: 4px;
-background: var(--panel);
-padding: 0 20px;
-border-bottom: 1px solid #262a37;
-}
-.tab {
-padding: 10px 16px;
-font-size: 13px;
-color: var(--muted);
-cursor: pointer;
-border-bottom: 2px solid transparent;
-}
-.tab.active { color: var(--text); border-bottom-color: var(--accent); }
-.view { display: none; flex: 1; min-height: 0; flex-direction: column; }
-.view.active { display: flex; }
-#exerciseView {
-max-width: 760px;
-width: 100%;
-margin: 0 auto;
-padding: 20px;
-overflow-y: auto;
-}
-.ex-controls {
-display: flex;
-gap: 10px;
-margin-bottom: 16px;
-flex-wrap: wrap;
-align-items: center;
-}
-.ex-controls select, .ex-controls button {
-background: #1f2330;
-border: 1px solid #333747;
-color: var(--text);
-padding: 8px 12px;
-border-radius: 8px;
-font-size: 13.5px;
-}
-.ex-controls button {
-background: var(--accent);
-color: #0f1117;
-font-weight: 600;
-cursor: pointer;
-border: none;
-}
-.ex-controls button:disabled { opacity: 0.5; cursor: default; }
-#score {
-margin-left: auto;
-font-size: 13px;
-color: var(--muted);
-}
-#problemCard {
-background: var(--bubble-bot);
-border-radius: 12px;
-padding: 18px;
-font-size: 15px;
-line-height: 1.6;
-white-space: pre-wrap;
-margin-bottom: 14px;
-min-height: 60px;
-}
-#answerForm {
-display: flex;
-gap: 8px;
-margin-bottom: 14px;
-}
-#answerInput {
-flex: 1;
-background: #1f2330;
-border: 1px solid #333747;
-color: var(--text);
-padding: 10px 12px;
-border-radius: 8px;
-font-size: 14px;
-}
-#answerInput:focus { outline: none; border-color: var(--accent); }
-#answerForm button {
-background: var(--accent);
-color: #0f1117;
-border: none;
-padding: 0 16px;
-border-radius: 8px;
-font-weight: 600;
-cursor: pointer;
-}
-#feedbackCard {
-border-radius: 12px;
-padding: 16px;
-font-size: 14px;
-line-height: 1.6;
-white-space: pre-wrap;
-display: none;
-}
-#feedbackCard.correct { background: #16321f; border: 1px solid #2a6b3f; }
-#feedbackCard.incorrect { background: #331a1a; border: 1px solid #7a3232; }
-#feedbackCard .verdict { font-weight: 700; margin-bottom: 6px; }
-
-#chat {
-flex: 1;
-overflow-y: auto;
-padding: 20px;
-display: flex;
-flex-direction: column;
-gap: 12px;
-max-width: 760px;
-width: 100%;
-margin: 0 auto;
-}
-.msg {
-max-width: 80%;
-padding: 10px 14px;
-border-radius: 14px;
-line-height: 1.5;
-white-space: pre-wrap;
-font-size: 14.5px;
-}
-.msg p {
-margin: 4px 0;
-}
-.user {
-align-self: flex-end;
-background: #183693;
-color: white;
-border-bottom-right-radius: 4px;
-}
-.bot {
-align-self: flex-start;
-background: var(--bubble-bot);
-border-bottom-left-radius: 4px;
-}
-.subjects {
-align-self: flex-start;
-color: var(--muted);
-font-size: 13px;
-padding: 4px 4px 10px;
-}
-footer {
-padding: 16px 20px 20px;
-background: var(--panel);
-border-top: 1px solid #262a37;
-}
-#form {
-max-width: 760px;
-margin: 0 auto;
-display: flex;
-gap: 8px;
-}
-#input {
-flex: 1;
-background: #1f2330;
-border: 1px solid #333747;
-color: var(--text);
-padding: 12px 14px;
-border-radius: 10px;
-font-size: 14.5px;
-resize: none;
-}
-#input:focus { outline: none; border-color: var(--accent); }
-#sendBtn {
-background: var(--accent);
-color: #0f1117;
-border: none;
-padding: 0 18px;
-border-radius: 10px;
-font-weight: 600;
-cursor: pointer;
-}
-#sendBtn:disabled { opacity: 0.5; cursor: default; }
-.typing { color: var(--muted); font-size: 13px; padding-left: 4px; }
-
-/* Custom settings style additions */
-#settingsBtn {
-background: none;
-border: 1px solid #333747;
-color: var(--muted);
-padding: 6px 12px;
-border-radius: 6px;
-cursor: pointer;
-font-size: 12px;
-margin-right: 8px;
-}
-#settingsBtn:hover { color: var(--text); border-color: var(--accent); }
-
-#installBtn {
-background: #16321f;
-border: 1px solid #2a6b3f;
-color: #e7e9ee;
-padding: 6px 12px;
-border-radius: 6px;
-cursor: pointer;
-font-size: 12px;
-margin-right: 8px;
-display: none;
-}
-#installBtn:hover { background: #235032; }
-
-#settingsModal {
-display: none;
-position: fixed;
-inset: 0;
-background: rgba(0,0,0,0.7);
-backdrop-filter: blur(4px);
-z-index: 100;
-align-items: center;
-justify-content: center;
-padding: 20px;
-}
-#settingsModal select, #settingsModal input {
-background: #1f2330;
-border: 1px solid #333747;
-color: var(--text);
-padding: 8px 12px;
-border-radius: 8px;
-font-size: 13.5px;
-width: 100%;
-margin-top: 4px;
-}
-#settingsModal select:focus, #settingsModal input:focus {
-outline: none;
-border-color: var(--accent);
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matho - Intelligent Math Tutor</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- KaTeX for beautiful math equations -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        
+        /* Smooth animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+    </style>
 </head>
-<body>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
-<header>
-<div>
-<h1>Matho</h1>
-<p>Calc 1 & 2 · Discrete Math · Algebra · Trigonometry · Linear Algebra</p>
-</div>
-<div style="display: flex; align-items: center;">
-<button id="installBtn">Install App</button>
-<button id="settingsBtn">Settings</button>
-<button id="resetBtn">Reset chat</button>
-</div>
-</header>
+    <!-- Header / Navbar -->
+    <header class="bg-slate-900 border-b border-slate-800 py-4 px-6 flex justify-between items-center sticky top-0 z-40">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
+                <i class="fa-solid fa-calculator text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wider flex items-center">
+                    MATHO <span class="ml-2 text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full font-medium">v2.0 Beta</span>
+                </h1>
+                <p class="text-xs text-slate-400">Intelligent Socratic Tutor & Solver</p>
+            </div>
+        </div>
 
-<div class="tabs">
-<div class="tab active" data-tab="chat">Chat</div>
-<div class="tab" data-tab="exercises">Exercises</div>
-</div>
+        <!-- Navigation tabs & Actions -->
+        <div class="flex items-center space-x-2 md:space-x-4">
+            <button onclick="switchTab('chat')" id="tab-chat" class="px-4 py-2 rounded-lg text-sm font-medium transition bg-slate-800 text-blue-400 border border-blue-500/20">
+                <i class="fa-regular fa-comments mr-2"></i>Tutor / Chat
+            </button>
+            <button onclick="switchTab('exercises')" id="tab-exercises" class="px-4 py-2 rounded-lg text-sm font-medium transition text-slate-400 hover:bg-slate-800/50">
+                <i class="fa-solid fa-graduation-cap mr-2"></i>Exercises
+            </button>
+            <button onclick="openSettings()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition" title="Settings">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+            <!-- Install PWA Button -->
+            <button id="install-btn" class="hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-emerald-600/10 transition items-center">
+                <i class="fa-solid fa-download mr-2"></i>Install App
+            </button>
+        </div>
+    </header>
 
-<div id="chatView" class="view active">
-<div id="chat">
-<div class="subjects">Ask me anything from those five subjects — I'll usually walk you through it step by step rather than just handing you the answer. Say "just give me the answer" if you want the full solution straight away. To get a direct calculation with DeepSeek R1, start your query with <code>/solve</code>.</div>
-</div>
-<footer>
-<form id="form">
-<textarea id="input" rows="1" placeholder="Ask a question... (Shift+Enter for new line)"></textarea>
-<button id="sendBtn" type="submit">Send</button>
-</form>
-</footer>
-</div>
+    <!-- Main Container -->
+    <main class="flex-1 flex max-w-7xl w-full mx-auto p-4 md:p-6 overflow-hidden relative">
 
-<div id="exerciseView" class="view">
-<div class="ex-controls">
-<select id="subjectSelect"></select>
-<select id="difficultySelect">
-<option value="easy">Easy</option>
-<option value="medium" selected>Medium</option>
-<option value="hard">Hard</option>
-</select>
-<button id="newExerciseBtn">New problem</button>
-<div id="score">0 / 0</div>
-</div>
-<div id="problemCard">Pick a subject and difficulty, then click "New problem".</div>
-<form id="answerForm" style="display:none;">
-<input id="answerInput" type="text" placeholder="Your answer..." autocomplete="off" />
-<button type="submit">Check</button>
-</form>
-<div id="feedbackCard"></div>
-</div>
+        <!-- TAB 1: CHAT & TUTORING -->
+        <section id="section-chat" class="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl h-[calc(100vh-180px)]">
+            <!-- Mode Selector Bar -->
+            <div class="bg-slate-950/80 border-b border-slate-800 p-3 px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Active Mode:</span>
+                    <div class="inline-flex rounded-lg p-0.5 bg-slate-900 border border-slate-800">
+                        <button onclick="setChatMode('tutor')" id="mode-tutor" class="px-3 py-1 text-xs font-semibold rounded-md transition bg-blue-600 text-white">
+                            Socratic (Learn)
+                        </button>
+                        <button onclick="setChatMode('solve')" id="mode-solve" class="px-3 py-1 text-xs font-semibold rounded-md transition text-slate-400 hover:text-white">
+                            Direct Solver (DeepSeek R1)
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3 text-xs text-slate-400">
+                    <span id="connection-status" class="flex items-center">
+                        <span class="h-2 w-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span> Free Cloud (Gemini)
+                    </span>
+                    <button onclick="clearChat()" class="text-slate-400 hover:text-rose-400 transition flex items-center gap-1">
+                        <i class="fa-regular fa-trash-can"></i> Clear Chat
+                    </button>
+                </div>
+            </div>
 
-<!-- SETTINGS MODAL -->
-<div id="settingsModal">
-  <div style="background: var(--panel); border: 1px solid #262a37; border-radius: 12px; max-width: 440px; width: 100%; padding: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); font-size: 14px;">
-    <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 600;">Settings</h3>
-    
-    <div style="margin-bottom: 14px;">
-      <label style="display: block; font-size: 12px; color: var(--muted); font-weight: 500;">Connection Mode</label>
-      <select id="settingEngine">
-        <option value="cloud">Cloud (Default / Server API)</option>
-        <option value="custom">My Keys (Gemini + Groq Console)</option>
-        <option value="local">Pure Local Mode (Ollama / LM Studio)</option>
-      </select>
+            <!-- Messages Area -->
+            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4">
+                <!-- Welcome Message -->
+                <div class="flex space-x-3 max-w-[85%] animate-fadeIn">
+                    <div class="h-9 w-9 bg-blue-600/20 text-blue-400 rounded-xl flex items-center justify-center flex-shrink-0 border border-blue-500/20">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-slate-800/40 border border-slate-800 p-4 rounded-2xl rounded-tl-none">
+                        <p class="font-semibold text-blue-400 mb-1">Matho, your tutor</p>
+                        <div class="space-y-2 text-slate-200">
+                            <p>Hi! I am **Matho**, your intelligent math tutor. What are we studying or solving today?</p>
+                            <p class="text-sm text-slate-400 bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+                                💡 <strong>Socratic Method (default)</strong>: I will help you understand the problem yourself by guiding you step by step!<br>
+                                ⚡ <strong>Direct Solver</strong>: To get the raw final solution immediately with reasoning (powered by DeepSeek R1), switch the mode above or type <code>/solve &lt;problem&gt;</code>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Message Input Area -->
+            <div class="p-4 bg-slate-900 border-t border-slate-800">
+                <form id="chat-form" onsubmit="handleSendMessage(event)" class="flex items-center space-x-2">
+                    <div class="relative flex-1">
+                        <input type="text" id="chat-input" placeholder="Ask a math question..." autocomplete="off"
+                               class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 pr-10 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition">
+                    </div>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white p-3.5 px-6 rounded-xl shadow-lg shadow-blue-500/15 transition flex items-center space-x-2">
+                        <span class="hidden sm:inline font-medium">Send</span>
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- TAB 2: EXERCISES MODULE -->
+        <section id="section-exercises" class="hidden flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl h-[calc(100vh-180px)]">
+            <div class="bg-slate-950/80 border-b border-slate-800 p-4 flex justify-between items-center flex-wrap gap-3">
+                <div>
+                    <h2 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-award text-yellow-500"></i> Matho Practice Center
+                    </h2>
+                    <p class="text-xs text-slate-400">Generate interactive challenges and test your skills</p>
+                </div>
+                <!-- Score Indicator -->
+                <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl flex items-center space-x-3">
+                    <i class="fa-solid fa-star text-amber-400 text-lg"></i>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase font-bold">My Score</div>
+                        <div class="text-base font-bold text-slate-200" id="user-score">0 / 0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-800 overflow-hidden">
+                <!-- Left panel: Config exercise -->
+                <div class="w-full lg:w-80 p-5 space-y-4 bg-slate-900/50 flex-shrink-0 overflow-y-auto">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400">New Challenge</h3>
+                    
+                    <div class="space-y-1">
+                        <label class="text-xs text-slate-400 font-medium">Topic:</label>
+                        <select id="ex-subject" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 px-3 text-slate-200 focus:outline-none focus:border-blue-500">
+                            <option value="Basic Algebra">Basic Algebra</option>
+                            <option value="Calculus Derivatives">Calculus Derivatives</option>
+                            <option value="Basic Integrals">Basic Integrals</option>
+                            <option value="Trigonometry">Trigonometry</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs text-slate-400 font-medium">Difficulty:</label>
+                        <select id="ex-difficulty" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 px-3 text-slate-200 focus:outline-none focus:border-blue-500">
+                            <option value="easy">Easy</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+
+                    <button onclick="createNewExercise()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 rounded-lg transition shadow-lg shadow-blue-500/10 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate mr-1"></i> Generate Exercise
+                    </button>
+                </div>
+
+                <!-- Right panel: Play Exercise -->
+                <div class="flex-1 p-6 flex flex-col overflow-y-auto" id="exercise-workspace">
+                    <div class="flex-1 flex flex-col items-center justify-center text-center py-10" id="ex-empty-state">
+                        <div class="bg-slate-800/50 h-20 w-20 rounded-2xl flex items-center justify-center border border-slate-800 text-slate-500 mb-4 text-3xl">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </div>
+                        <h4 class="text-lg font-bold">No Active Exercise</h4>
+                        <p class="text-sm text-slate-400 max-w-sm mt-1">Select a topic and difficulty on the left panel to begin your practice session.</p>
+                    </div>
+
+                    <!-- Exercise Active State -->
+                    <div class="hidden flex-1 flex flex-col space-y-6" id="ex-active-state">
+                        <div class="bg-slate-950 border border-slate-800 p-5 rounded-2xl shadow-inner relative">
+                            <span class="absolute top-3 right-3 text-[10px] bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-blue-400 font-bold uppercase tracking-wider" id="ex-card-tag">EXERCISE</span>
+                            <div class="text-xs text-slate-500 uppercase font-bold mb-1">Problem Statement</div>
+                            <div class="text-lg text-slate-100 font-medium leading-relaxed" id="ex-problem-text">...</div>
+                        </div>
+
+                        <!-- Hints section -->
+                        <div id="ex-hints-box" class="space-y-2">
+                            <div class="text-xs text-slate-500 uppercase font-bold flex items-center gap-1.5">
+                                <i class="fa-regular fa-lightbulb text-yellow-500"></i> Hints Available
+                            </div>
+                            <div class="flex gap-2 flex-wrap">
+                                <button onclick="revealHint(1)" id="hint1-btn" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+                                    Reveal Hint 1
+                                </button>
+                                <button onclick="revealHint(2)" id="hint2-btn" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition hidden">
+                                    Reveal Hint 2
+                                </button>
+                            </div>
+                            <div id="hint-text-1" class="hidden text-sm text-yellow-400/90 bg-yellow-500/5 border border-yellow-500/20 p-3 rounded-xl"></div>
+                            <div id="hint-text-2" class="hidden text-sm text-amber-400/90 bg-amber-500/5 border border-amber-500/20 p-3 rounded-xl text-amber-200"></div>
+                        </div>
+
+                        <!-- Answer Submission -->
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row items-center gap-3">
+                            <div class="flex-1 w-full">
+                                <label class="text-xs text-slate-400 font-bold uppercase block mb-1">Your Answer:</label>
+                                <input type="text" id="ex-user-answer" placeholder="Type your answer here..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
+                            </div>
+                            <button onclick="submitAnswer()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-8 py-3 rounded-xl shadow-lg shadow-emerald-600/10 transition mt-5 flex justify-center items-center gap-2">
+                                Check Answer <i class="fa-solid fa-circle-check"></i>
+                            </button>
+                        </div>
+
+                        <!-- Result Feedback Box -->
+                        <div id="ex-feedback-box" class="hidden border rounded-2xl p-4 flex space-x-3 animate-fadeIn">
+                            <div id="feedback-icon" class="h-10 w-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"></div>
+                            <div>
+                                <h5 class="font-bold text-base" id="feedback-title">...</h5>
+                                <p class="text-sm text-slate-300 mt-0.5" id="feedback-text">...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- SETTINGS PANEL (MODAL) - FIXED DISPLAY OVERRIDE ISSUE -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl animate-scaleUp">
+            <div class="bg-slate-950 p-4 border-b border-slate-800 flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-gears text-blue-500"></i> Connection Settings
+                </h3>
+                <button onclick="closeSettings()" class="text-slate-400 hover:text-white transition text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="p-6 space-y-5">
+                <!-- Mode Cloud vs Local Switch -->
+                <div class="space-y-2">
+                    <label class="text-xs text-slate-400 uppercase font-bold tracking-wider">Execution Engine:</label>
+                    <select id="settings-engine" onchange="toggleEngineFields()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-blue-500">
+                        <option value="cloud">Free Cloud (Matho Hosted API)</option>
+                        <option value="custom">My API Keys (Personal Google Gemini & Groq)</option>
+                        <option value="local">Pure Local Mode (Ollama / LM Studio on PC)</option>
+                    </select>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                        Local mode runs the Artificial Intelligence model directly on your processor or graphics card (GPU). No data is sent to the internet!
+                    </p>
+                </div>
+
+                <!-- Custom Keys Fields -->
+                <div id="fields-custom" class="hidden space-y-4 border-t border-slate-800 pt-4">
+                    <div class="space-y-1">
+                        <label class="text-xs text-slate-400 font-semibold block">Google Gemini API Key (Socratic):</label>
+                        <input type="password" id="key-gemini" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs text-slate-400 font-semibold block">Groq API Key (Direct solver):</label>
+                        <input type="password" id="key-groq" placeholder="gsk_..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- Local Mode Fields -->
+                <div id="fields-local" class="hidden space-y-4 border-t border-slate-800 pt-4">
+                    <div class="space-y-3">
+                        <div class="space-y-1">
+                            <label class="text-xs text-slate-400 font-semibold block">Local Software Interface:</label>
+                            <select id="local-software" onchange="autoFillLocalUrl()" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 text-sm focus:outline-none">
+                                <option value="ollama">Ollama (Recommended)</option>
+                                <option value="lmstudio">LM Studio</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs text-slate-400 font-semibold block">Local Server Endpoint URL:</label>
+                            <input type="text" id="local-url" value="http://localhost:11434" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs text-slate-400 font-semibold block">Model Name (e.g. deepseek-r1:8b):</label>
+                            <input type="text" id="local-model" placeholder="Ex: deepseek-r1:8b" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-950 p-4 border-t border-slate-800 flex justify-end space-x-3">
+                <button onclick="closeSettings()" class="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl transition">Cancel</button>
+                <button onclick="saveSettings()" class="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl shadow-lg shadow-blue-500/10 transition">Save</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Custom Keys Panel -->
-    <div id="settingsKeysSection" style="display: none; margin-bottom: 14px; flex-direction: column; gap: 10px;">
-      <div>
-        <label style="display: block; font-size: 12px; color: var(--muted);">Google Gemini API Key</label>
-        <input type="password" id="settingGeminiKey" placeholder="AIzaSy..." />
-      </div>
-      <div>
-        <label style="display: block; font-size: 12px; color: var(--muted);">Groq API Key (for Direct Solve)</label>
-        <input type="password" id="settingGroqKey" placeholder="gsk_..." />
-      </div>
-    </div>
+    <!-- Frontend logic script -->
+    <script>
+        let currentTab = 'chat';
+        let currentMode = 'tutor'; // tutor or solve
+        let activeExercise = null;
+        let scoreCorrect = 0;
+        let scoreTotal = 0;
+        let pwaInstallPrompt = null;
 
-    <!-- Local AI Configuration Panel -->
-    <div id="settingsLocalSection" style="display: none; margin-bottom: 14px; flex-direction: column; gap: 10px;">
-      <div>
-        <label style="display: block; font-size: 12px; color: var(--muted);">Local Software</label>
-        <select id="settingLocalSoftware">
-          <option value="ollama">Ollama</option>
-          <option value="lmstudio">LM Studio</option>
-        </select>
-      </div>
-      <div>
-        <label style="display: block; font-size: 12px; color: var(--muted);">Local API URL</label>
-        <input type="text" id="settingLocalUrl" value="http://localhost:11434" />
-      </div>
-      <div>
-        <label style="display: block; font-size: 12px; color: var(--muted);">Model Name</label>
-        <input type="text" id="settingLocalModel" value="deepseek-r1:8b" />
-      </div>
-    </div>
+        // Load config from localStorage
+        const config = {
+            engine: localStorage.getItem('math_engine') || 'cloud',
+            geminiKey: localStorage.getItem('math_gemini_key') || '',
+            groqKey: localStorage.getItem('math_groq_key') || '',
+            localSoftware: localStorage.getItem('math_local_software') || 'ollama',
+            localUrl: localStorage.getItem('math_local_url') || 'http://localhost:11434',
+            localModel: localStorage.getItem('math_local_model') || 'deepseek-r1:8b'
+        };
 
-    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-      <button id="closeSettingsBtn" style="background: none; border: 1px solid #333747; color: var(--muted); padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;">Cancel</button>
-      <button id="saveSettingsBtn" style="background: var(--accent); color: #0f1117; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">Save</button>
-    </div>
-  </div>
-</div>
+        window.addEventListener('DOMContentLoaded', () => {
+            // Register PWA Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/service-worker.js')
+                .then(reg => console.log('Service Worker registered!'))
+                .catch(err => console.error('Service Worker error:', err));
+            }
 
-<script>
-// ---- Elements ----
-const chat = document.getElementById('chat');
-const form = document.getElementById('form');
-const input = document.getElementById('input');
-const sendBtn = document.getElementById('sendBtn');
-const resetBtn = document.getElementById('resetBtn');
+            // Install PWA trigger
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                pwaInstallPrompt = e;
+                const instBtn = document.getElementById('install-btn');
+                instBtn.classList.remove('hidden');
+                instBtn.classList.add('flex');
+            });
 
-// ---- Settings Elements ----
-const settingsBtn = document.getElementById('settingsBtn');
-const installBtn = document.getElementById('installBtn');
-const settingsModal = document.getElementById('settingsModal');
-const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-const settingEngine = document.getElementById('settingEngine');
-const settingsKeysSection = document.getElementById('settingsKeysSection');
-const settingsLocalSection = document.getElementById('settingsLocalSection');
-const settingGeminiKey = document.getElementById('settingGeminiKey');
-const settingGroqKey = document.getElementById('settingGroqKey');
-const settingLocalSoftware = document.getElementById('settingLocalSoftware');
-const settingLocalUrl = document.getElementById('settingLocalUrl');
-const settingLocalModel = document.getElementById('settingLocalModel');
+            document.getElementById('install-btn').addEventListener('click', async () => {
+                if (pwaInstallPrompt) {
+                    pwaInstallPrompt.prompt();
+                    const { outcome } = await pwaInstallPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        document.getElementById('install-btn').classList.add('hidden');
+                    }
+                    pwaInstallPrompt = null;
+                }
+            });
 
-// ---- App Configuration State ----
-const config = {
-  engine: localStorage.getItem('math_engine') || 'cloud',
-  geminiKey: localStorage.getItem('math_gemini_key') || '',
-  groqKey: localStorage.getItem('math_groq_key') || '',
-  localSoftware: localStorage.getItem('math_local_software') || 'ollama',
-  localUrl: localStorage.getItem('math_local_url') || 'http://localhost:11434',
-  localModel: localStorage.getItem('math_local_model') || 'deepseek-r1:8b'
-};
+            // Initialize connection indicator
+            updateConnectionStatus();
+            
+            // Auto-scroll messages to bottom
+            const messagesDiv = document.getElementById('chat-messages');
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
 
-// ---- Service Worker and PWA Register ----
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/service-worker.js')
-    .then(reg => console.log('Service Worker registered!'))
-    .catch(err => console.error('Service Worker error:', err));
-}
+        // Tabs switching
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-chat').className = tab === 'chat' 
+                ? 'px-4 py-2 rounded-lg text-sm font-medium transition bg-slate-800 text-blue-400 border border-blue-500/20' 
+                : 'px-4 py-2 rounded-lg text-sm font-medium transition text-slate-400 hover:bg-slate-800/50';
+            
+            document.getElementById('tab-exercises').className = tab === 'exercises' 
+                ? 'px-4 py-2 rounded-lg text-sm font-medium transition bg-slate-800 text-blue-400 border border-blue-500/20' 
+                : 'px-4 py-2 rounded-lg text-sm font-medium transition text-slate-400 hover:bg-slate-800/50';
 
-// PWA Install prompt
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  installBtn.style.display = 'inline-block';
-});
+            if (tab === 'chat') {
+                document.getElementById('section-chat').classList.remove('hidden');
+                document.getElementById('section-exercises').classList.add('hidden');
+            } else {
+                document.getElementById('section-chat').classList.add('hidden');
+                document.getElementById('section-exercises').classList.remove('hidden');
+            }
+        }
 
-installBtn.addEventListener('click', async () => {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      installBtn.style.display = 'none';
-    }
-    deferredPrompt = null;
-  }
-});
+        // Toggle chat mode
+        function setChatMode(mode) {
+            currentMode = mode;
+            document.getElementById('mode-tutor').className = mode === 'tutor'
+                ? 'px-3 py-1 text-xs font-semibold rounded-md transition bg-blue-600 text-white'
+                : 'px-3 py-1 text-xs font-semibold rounded-md transition text-slate-400 hover:text-white';
+            
+            document.getElementById('mode-solve').className = mode === 'solve'
+                ? 'px-3 py-1 text-xs font-semibold rounded-md transition bg-blue-600 text-white'
+                : 'px-3 py-1 text-xs font-semibold rounded-md transition text-slate-400 hover:text-white';
+        }
 
-// One session id per browser tab (kept in sessionStorage so a refresh
-// doesn't lose context, but a new tab starts fresh).
-let sessionId = sessionStorage.getItem('sessionId');
-if (!sessionId) {
-  sessionId = crypto.randomUUID();
-  sessionStorage.setItem('sessionId', sessionId);
-}
+        // Add user/assistant message to chat display
+        function addMessageToDisplay(sender, text) {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = sender === 'user' ? 'flex justify-end animate-fadeIn' : 'flex space-x-3 max-w-[85%] animate-fadeIn';
 
-// LaTeX Equation Render helper
-function renderMath(element) {
-  if (window.renderMathInElement) {
-    window.renderMathInElement(element, {
-      delimiters: [
-        {left: "$$", right: "$$", display: true},
-        {left: "$", right: "$", display: false},
-        {left: "\\(", right: "\\)", display: false},
-        {left: "\\[", right: "\\]", display: true}
-      ],
-      throwOnError: false
-    });
-  }
-}
+            // Safe parsing guard to prevent marked.js from throwing error if input text is undefined or null
+            const safeText = text || '';
+            let formattedText = marked.parse(safeText);
 
-function addMessage(text, who) {
-  const div = document.createElement('div');
-  div.className = 'msg ' + who;
-  
-  if (who === 'bot' && window.marked) {
-    div.innerHTML = window.marked.parse(text);
-  } else {
-    div.textContent = text;
-  }
-  
-  chat.appendChild(div);
-  renderMath(div);
-  chat.scrollTop = chat.scrollHeight;
-  return div;
-}
+            if (sender === 'user') {
+                messageWrapper.innerHTML = `
+                    <div class="bg-blue-600 p-4 rounded-2xl rounded-tr-none max-w-[85%]">
+                        <div class="text-slate-100 prose prose-invert">${formattedText}</div>
+                    </div>
+                `;
+            } else {
+                messageWrapper.innerHTML = `
+                    <div class="h-9 w-9 bg-blue-600/20 text-blue-400 rounded-xl flex items-center justify-center flex-shrink-0 border border-blue-500/20">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-slate-800/40 border border-slate-800 p-4 rounded-2xl rounded-tl-none">
+                        <p class="font-semibold text-blue-400 mb-1">Matho, your tutor</p>
+                        <div class="text-slate-200 space-y-2 prose prose-invert text-sm sm:text-base">${formattedText}</div>
+                    </div>
+                `;
+            }
 
-input.addEventListener('input', () => {
-  input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 160) + 'px';
-});
+            chatMessages.appendChild(messageWrapper);
+            
+            // Render beautiful KaTeX equations
+            renderMathInElement(messageWrapper, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\(', right: '\\)', display: false},
+                    {left: '\\[', right: '\\]', display: true}
+                ],
+                throwOnError: false
+            });
 
-input.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    form.requestSubmit();
-  }
-});
+            // Smooth scroll
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
 
-// Dynamic request router (supports Cloud, Custom Keys, and Local Ollama/LM Studio)
-async function sendChatMessage(message) {
-  if (config.engine === 'local') {
-    // Pure Local Mode (Ollama or LM Studio)
-    const isSolveCmd = message.toLowerCase().startsWith('/solve');
-    const systemPrompt = isSolveCmd 
-      ? "You are Matho (direct solver mode), a university-level mathematics expert. Give the exact final result at the very beginning of your message, followed by clear, step-by-step mathematical demonstration using markdown and LaTeX."
-      : "You are Matho, an exceptional socratic math tutor. Patient, encouraging and pedagogical. Never give the direct answer to a problem, break it down and guide step-by-step.";
-    
-    const cleanMessage = isSolveCmd ? message.substring(6).trim() : message;
+        // Show a typing indicator
+        function showTypingIndicator() {
+            const chatMessages = document.getElementById('chat-messages');
+            const indicator = document.createElement('div');
+            indicator.id = 'typing-indicator';
+            indicator.className = 'flex space-x-3 max-w-[85%]';
+            indicator.innerHTML = `
+                <div class="h-9 w-9 bg-blue-600/20 text-blue-400 rounded-xl flex items-center justify-center border border-blue-500/20">
+                    <i class="fa-solid fa-robot animate-bounce"></i>
+                </div>
+                <div class="bg-slate-800/40 border border-slate-800 p-4 rounded-2xl rounded-tl-none flex items-center space-x-1.5 py-3">
+                    <span class="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></span>
+                    <span class="h-2 w-2 rounded-full bg-blue-400 animate-pulse delay-75"></span>
+                    <span class="h-2 w-2 rounded-full bg-blue-400 animate-pulse delay-150"></span>
+                </div>
+            `;
+            chatMessages.appendChild(indicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
 
-    const url = config.localSoftware === 'ollama' 
-      ? `${config.localUrl}/api/chat` 
-      : `${config.localUrl}/v1/chat/completions`;
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) indicator.remove();
+        }
 
-    let payload;
-    if (config.localSoftware === 'ollama') {
-      payload = {
-        model: config.localModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: cleanMessage }
-        ],
-        stream: false
-      };
-    } else {
-      payload = {
-        model: config.localModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: cleanMessage }
-        ],
-        temperature: 0.2
-      };
-    }
+        // Send chat message
+        async function handleSendMessage(event) {
+            event.preventDefault();
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+            // Clear input
+            input.value = '';
 
-    if (!res.ok) throw new Error("Local AI server did not respond. Check if Ollama or LM Studio is running.");
-    const data = await res.json();
-    
-    let reply = "";
-    if (config.localSoftware === 'ollama') {
-      reply = data.message.content;
-    } else {
-      reply = data.choices[0].message.content;
-    }
-    
-    return { reply };
-  } else {
-    // Cloud (Server API) or Custom API Keys Mode
-    const headers = { 'Content-Type': 'application/json' };
-    const body = { sessionId, message };
-    
-    if (config.engine === 'custom') {
-      body.customApiKey = message.toLowerCase().startsWith('/solve') ? config.groqKey : config.geminiKey;
-    }
+            // Render message on UI
+            addMessageToDisplay('user', message);
 
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body)
-    });
+            // Execute local engine logic or call proxy server
+            showTypingIndicator();
 
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || "Communication error.");
-    }
-    const data = await res.json();
-    return data;
-  }
-}
+            try {
+                if (config.engine === 'local') {
+                    await handleLocalRequest(message);
+                } else {
+                    await handleCloudRequest(message);
+                }
+            } catch (error) {
+                console.error(error);
+                addMessageToDisplay('assistant', `⚠️ **Error:** ${error.message || "An error occurred while communicating with the AI."}`);
+            } finally {
+                removeTypingIndicator();
+            }
+        }
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const message = input.value.trim();
-  if (!message) return;
+        // CALL SERVERS/APIs
+        async function handleCloudRequest(message) {
+            let finalMode = currentMode;
+            let finalMessage = message;
+            
+            if (message.startsWith('/solve ')) {
+                finalMode = 'solve';
+            } else if (message.startsWith('/tutor ')) {
+                finalMode = 'tutor';
+                finalMessage = message.substring(7);
+            }
 
-  addMessage(message, 'user');
-  input.value = '';
-  input.style.height = 'auto';
-  sendBtn.disabled = true;
+            // Always use unified POST /api/chat compatible with server.js v5!
+            const endpoint = '/api/chat';
+            
+            // Format message to include prefix if required by the backend router
+            if (finalMode === 'solve' && !finalMessage.startsWith('/solve')) {
+                finalMessage = '/solve ' + finalMessage;
+            }
 
-  const typing = document.createElement('div');
-  typing.className = 'typing';
-  typing.textContent = 'Tutor is thinking...';
-  chat.appendChild(typing);
-  chat.scrollTop = chat.scrollHeight;
+            const body = { message: finalMessage };
+            
+            // Pass custom API keys if in 'custom' engine mode
+            if (config.engine === 'custom') {
+                body.customApiKey = finalMode === 'tutor' ? config.geminiKey : config.groqKey;
+            }
 
-  try {
-    const data = await sendChatMessage(message);
-    typing.remove();
-    if (data.error) {
-      addMessage('Error: ' + data.error, 'bot');
-    } else {
-      addMessage(data.reply, 'bot');
-    }
-  } catch (err) {
-    typing.remove();
-    addMessage('Error: ' + err.message, 'bot');
-  } finally {
-    sendBtn.disabled = false;
-    input.focus();
-  }
-});
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
 
-resetBtn.addEventListener('click', async () => {
-  try {
-    await fetch('/api/reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId }),
-    });
-  } catch (e) {
-    console.error("Reset Error:", e);
-  }
-  chat.innerHTML = '<div class="subjects">Chat reset. Ask me anything from Calc 1/2, Discrete Math, Algebra, Trig, or Linear Algebra. To solve with DeepSeek R1, use <code>/solve</code>.</div>';
-});
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Communication error.");
+            }
 
-// ---- Tabs ----
-const tabs = document.querySelectorAll('.tab');
-const views = { chat: document.getElementById('chatView'), exercises: document.getElementById('exerciseView') };
+            const data = await response.json();
+            
+            // Accept both 'reply' and 'response' parameters to prevent undefined crashes!
+            const replyText = data.reply || data.response || "No response received.";
+            addMessageToDisplay('assistant', replyText);
+        }
 
-tabs.forEach((tab) => {
-  tab.addEventListener('click', () => {
-    tabs.forEach((t) => t.classList.remove('active'));
-    tab.classList.add('active');
-    Object.values(views).forEach((v) => v.classList.remove('active'));
-    views[tab.dataset.tab].classList.add('active');
-  });
-});
+        // LOCAL AI OLLAMA/LMSTUDIO HANDLER
+        async function handleLocalRequest(message) {
+            const systemPrompt = currentMode === 'tutor' ? "You are Matho, a socratic mathematics tutor. Do not give direct answers, guide the student." : "You are a direct math solver. Provide the exact answer and demonstrate steps briefly.";
+            const url = config.localSoftware === 'ollama' ? `${config.localUrl}/api/chat` : `${config.localUrl}/v1/chat/completions`;
 
-// ---- Exercises ----
-const subjectSelect = document.getElementById('subjectSelect');
-const difficultySelect = document.getElementById('difficultySelect');
-const newExerciseBtn = document.getElementById('newExerciseBtn');
-const problemCard = document.getElementById('problemCard');
-const answerForm = document.getElementById('answerForm');
-const answerInput = document.getElementById('answerInput');
-const feedbackCard = document.getElementById('feedbackCard');
-const scoreEl = document.getElementById('score');
+            let body;
+            if (config.localSoftware === 'ollama') {
+                body = JSON.stringify({
+                    model: config.localModel,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: message }
+                    ],
+                    stream: false
+                });
+            } else {
+                body = JSON.stringify({
+                    model: config.localModel,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: message }
+                    ],
+                    temperature: 0.2
+                });
+            }
 
-// Load subjects list
-fetch('/api/subjects')
-  .then((r) => r.json())
-  .then((data) => {
-    subjectSelect.innerHTML = data.subjects
-      .map((s) => `<option value="${s}">${s}</option>`)
-      .join('');
-  })
-  .catch(err => {
-    console.error("Failed to load subjects:", err);
-    // fallback static list
-    const staticSubjects = ["Calculus 1 & 2", "Discrete Math", "Algebra", "Trigonometry", "Linear Algebra"];
-    subjectSelect.innerHTML = staticSubjects.map((s) => `<option value="${s}">${s}</option>`).join('');
-  });
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: body
+            });
 
-function updateScore(score) {
-  scoreEl.textContent = `${score.correct} / ${score.total}`;
-}
+            if (!response.ok) throw new Error("Local AI server did not respond. Verify that Ollama or LM Studio is running on your PC!");
 
-newExerciseBtn.addEventListener('click', async () => {
-  newExerciseBtn.disabled = true;
-  problemCard.textContent = 'Generating a problem...';
-  feedbackCard.style.display = 'none';
-  answerForm.style.display = 'none';
-  
-  try {
-    const body = {
-      sessionId,
-      subject: subjectSelect.value,
-      difficulty: difficultySelect.value,
-    };
-    if (config.engine === 'custom') {
-      body.customApiKey = config.geminiKey;
-    }
+            const data = await response.json();
+            let aiResponse = "";
 
-    const res = await fetch('/api/exercise/new', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    
-    const data = await res.json();
-    if (data.error) {
-      problemCard.textContent = 'Error: ' + data.error;
-    } else {
-      problemCard.innerHTML = window.marked ? window.marked.parse(data.problem) : data.problem;
-      renderMath(problemCard);
-      answerForm.style.display = 'flex';
-      answerInput.value = '';
-      answerInput.focus();
-      updateScore(data.score);
-    }
-  } catch (err) {
-    problemCard.textContent = 'Network error — is the server running?';
-  } finally {
-    newExerciseBtn.disabled = false;
-  }
-});
+            if (config.localSoftware === 'ollama') {
+                aiResponse = data.message.content;
+            } else {
+                aiResponse = data.choices[0].message.content;
+            }
 
-answerForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const answer = answerInput.value.trim();
-  if (!answer) return;
+            addMessageToDisplay('assistant', aiResponse);
+        }
 
-  const submitBtn = answerForm.querySelector('button');
-  submitBtn.disabled = true;
-  feedbackCard.style.display = 'block';
-  feedbackCard.className = '';
-  feedbackCard.textContent = 'Checking...';
+        // RESET CHAT
+        async function clearChat() {
+            if (confirm("Reset the complete history of this conversation?")) {
+                try {
+                    await fetch('/api/chat/reset', { method: 'POST' });
+                    const chatMessages = document.getElementById('chat-messages');
+                    chatMessages.innerHTML = `
+                        <div class="flex space-x-3 max-w-[85%] animate-fadeIn">
+                            <div class="h-9 w-9 bg-blue-600/20 text-blue-400 rounded-xl flex items-center justify-center border border-blue-500/20">
+                                <i class="fa-solid fa-robot"></i>
+                            </div>
+                            <div class="bg-slate-800/40 border border-slate-800 p-4 rounded-2xl rounded-tl-none">
+                                <p class="font-semibold text-blue-400 mb-1">Matho, your tutor</p>
+                                <p class="text-slate-200">Conversation history reset. What shall we study now?</p>
+                            </div>
+                        </div>
+                    `;
+                } catch (e) {
+                    alert("Error resetting conversation history.");
+                }
+            }
+        }
 
-  try {
-    const body = { sessionId, answer };
-    if (config.engine === 'custom') {
-      body.customApiKey = config.geminiKey;
-    }
+        // EXERCISES MODULE LOGIC
+        async function createNewExercise() {
+            const subject = document.getElementById('ex-subject').value;
+            const difficulty = document.getElementById('ex-difficulty').value;
 
-    const res = await fetch('/api/exercise/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    
-    const data = await res.json();
-    if (data.error) {
-      feedbackCard.className = 'incorrect';
-      feedbackCard.textContent = 'Error: ' + data.error;
-      return;
-    }
+            // Show loading
+            document.getElementById('ex-empty-state').classList.add('hidden');
+            document.getElementById('ex-active-state').classList.remove('hidden');
+            document.getElementById('ex-problem-text').innerText = "Generating a new math problem...";
+            document.getElementById('ex-hints-box').classList.add('hidden');
+            document.getElementById('ex-feedback-box').classList.add('hidden');
+            document.getElementById('ex-user-answer').value = '';
 
-    feedbackCard.className = data.correct ? 'correct' : 'incorrect';
-    const verdict = data.correct ? "✓ Correct!" : "✗ Not quite";
-    
-    const detailedFeedback = window.marked ? window.marked.parse(data.feedback) : data.feedback;
+            try {
+                const body = {};
+                if (config.engine === 'custom') body.customApiKey = config.geminiKey;
 
-    feedbackCard.innerHTML =
-      `<div class="verdict">${verdict}</div>` +
-      detailedFeedback +
-      (!data.correct ? `<div style="margin-top:10px; font-weight:bold;">Correct answer: ${data.correctAnswer}</div>` : '');
-    
-    renderMath(feedbackCard);
-    updateScore(data.score);
-    answerForm.style.display = 'none';
-  } catch (err) {
-    feedbackCard.className = 'incorrect';
-    feedbackCard.textContent = 'Network error — is the server running?';
-  } finally {
-    submitBtn.disabled = false;
-  }
-});
+                const response = await fetch('/api/exercise/new', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject, difficulty, ...body })
+                });
 
-// ---- Settings Modal Controls ----
-function openSettings() {
-  settingEngine.value = config.engine;
-  settingGeminiKey.value = config.geminiKey;
-  settingGroqKey.value = config.groqKey;
-  settingLocalSoftware.value = config.localSoftware;
-  settingLocalUrl.value = config.localUrl;
-  settingLocalModel.value = config.localModel;
+                if (!response.ok) throw new Error("Failed to generate exercise.");
 
-  toggleEngineFields();
-  settingsModal.style.display = 'flex';
-}
+                activeExercise = await response.json();
+                
+                // Set Up Card UI
+                document.getElementById('ex-card-tag').innerText = `${subject} (${difficulty})`;
+                document.getElementById('ex-problem-text').innerText = activeExercise.problem;
+                
+                // KaTeX render
+                renderMathInElement(document.getElementById('ex-problem-text'), {
+                    delimiters: [
+                        {left: '$', right: '$', display: false},
+                        {left: '$$', right: '$$', display: true}
+                    ],
+                    throwOnError: false
+                });
 
-function closeSettings() {
-  settingsModal.style.display = 'none';
-}
+                // Set up hints
+                document.getElementById('ex-hints-box').classList.remove('hidden');
+                document.getElementById('hint1-btn').classList.remove('hidden');
+                document.getElementById('hint2-btn').classList.add('hidden');
+                document.getElementById('hint-text-1').classList.add('hidden');
+                document.getElementById('hint-text-2').classList.add('hidden');
 
-function toggleEngineFields() {
-  const engine = settingEngine.value;
-  settingsKeysSection.style.display = 'none';
-  settingsLocalSection.style.display = 'none';
+            } catch (e) {
+                console.error(e);
+                document.getElementById('ex-problem-text').innerText = "❌ Generation error. Please retry or configure your API Key.";
+            }
+        }
 
-  if (engine === 'custom') {
-    settingsKeysSection.style.display = 'flex';
-  } else if (engine === 'local') {
-    settingsLocalSection.style.display = 'flex';
-  }
-}
+        function revealHint(num) {
+            if (num === 1) {
+                const box = document.getElementById('hint-text-1');
+                box.innerText = activeExercise.hints[0];
+                box.classList.remove('hidden');
+                document.getElementById('hint1-btn').classList.add('hidden');
+                document.getElementById('hint2-btn').classList.remove('hidden');
+            } else {
+                const box = document.getElementById('hint-text-2');
+                box.innerText = activeExercise.hints[1];
+                box.classList.remove('hidden');
+                document.getElementById('hint2-btn').classList.add('hidden');
+            }
+        }
 
-settingEngine.addEventListener('change', toggleEngineFields);
+        async function submitAnswer() {
+            const answer = document.getElementById('ex-user-answer').value.trim();
+            if (!answer) {
+                alert("Please enter an answer!");
+                return;
+            }
 
-settingLocalSoftware.addEventListener('change', () => {
-  if (settingLocalSoftware.value === 'ollama') {
-    settingLocalUrl.value = "http://localhost:11434";
-    settingLocalModel.value = "deepseek-r1:8b";
-  } else {
-    settingLocalUrl.value = "http://localhost:1234";
-    settingLocalModel.value = "deepseek-r1-distill-qwen-7b";
-  }
-});
+            const feedbackBox = document.getElementById('ex-feedback-box');
+            feedbackBox.classList.add('hidden');
 
-settingsBtn.addEventListener('click', openSettings);
-closeSettingsBtn.addEventListener('click', closeSettings);
+            try {
+                const body = {
+                    problem: activeExercise.problem,
+                    userAnswer: answer,
+                    correctAnswer: activeExercise.correctAnswer
+                };
+                if (config.engine === 'custom') body.customApiKey = config.geminiKey;
 
-saveSettingsBtn.addEventListener('click', () => {
-  config.engine = settingEngine.value;
-  config.geminiKey = settingGeminiKey.value;
-  config.groqKey = settingGroqKey.value;
-  config.localSoftware = settingLocalSoftware.value;
-  config.localUrl = settingLocalUrl.value;
-  config.localModel = settingLocalModel.value;
+                const response = await fetch('/api/exercise/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
 
-  localStorage.setItem('math_engine', config.engine);
-  localStorage.setItem('math_gemini_key', config.geminiKey);
-  localStorage.setItem('math_groq_key', config.groqKey);
-  localStorage.setItem('math_local_software', config.localSoftware);
-  localStorage.setItem('math_local_url', config.localUrl);
-  localStorage.setItem('math_local_model', config.localModel);
+                if (!response.ok) throw new Error("Correction error.");
 
-  closeSettings();
-});
-</script>
+                const result = await response.json();
+                
+                // Show Result UI
+                feedbackBox.classList.remove('hidden');
+                const icon = document.getElementById('feedback-icon');
+                const title = document.getElementById('feedback-title');
+                const text = document.getElementById('feedback-text');
+
+                scoreTotal++;
+                const isCorrect = result.correct || result.isCorrect;
+
+                if (isCorrect) {
+                    scoreCorrect++;
+                    feedbackBox.className = "border border-emerald-500/20 bg-emerald-500/5 rounded-2xl p-4 flex space-x-3 animate-fadeIn text-emerald-300";
+                    icon.className = "h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl flex-shrink-0";
+                    icon.innerHTML = '<i class="fa-solid fa-square-check"></i>';
+                    title.innerText = "Excellent! Correct answer!";
+                } else {
+                    feedbackBox.className = "border border-rose-500/20 bg-rose-500/5 rounded-2xl p-4 flex space-x-3 animate-fadeIn text-rose-300";
+                    icon.className = "h-10 w-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl flex-shrink-0";
+                    icon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+                    title.innerText = "Not quite right...";
+                }
+
+                text.innerText = result.feedback || result.explanation || "";
+                document.getElementById('user-score').innerText = `${scoreCorrect} / ${scoreTotal}`;
+
+            } catch (e) {
+                alert("Evaluation error.");
+            }
+        }
+
+        // SETTINGS DIALOGS - CONTROL DISPLAY STATE USING FLEX AND HIDDEN SAFELY
+        function openSettings() {
+            document.getElementById('settings-engine').value = config.engine;
+            document.getElementById('key-gemini').value = config.geminiKey;
+            document.getElementById('key-groq').value = config.groqKey;
+            document.getElementById('local-software').value = config.localSoftware;
+            document.getElementById('local-url').value = config.localUrl;
+            document.getElementById('local-model').value = config.localModel;
+
+            toggleEngineFields();
+            
+            const modal = document.getElementById('settings-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeSettings() {
+            const modal = document.getElementById('settings-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function toggleEngineFields() {
+            const engine = document.getElementById('settings-engine').value;
+            document.getElementById('fields-custom').classList.add('hidden');
+            document.getElementById('fields-local').classList.add('hidden');
+
+            if (engine === 'custom') {
+                document.getElementById('fields-custom').classList.remove('hidden');
+            } else if (engine === 'local') {
+                document.getElementById('fields-local').classList.remove('hidden');
+            }
+        }
+
+        function autoFillLocalUrl() {
+            const sw = document.getElementById('local-software').value;
+            const urlField = document.getElementById('local-url');
+            const modelField = document.getElementById('local-model');
+            
+            if (sw === 'ollama') {
+                urlField.value = "http://localhost:11434";
+                modelField.value = "deepseek-r1:8b";
+            } else {
+                urlField.value = "http://localhost:1234";
+                modelField.value = "deepseek-r1-distill-qwen-7b";
+            }
+        }
+
+        function saveSettings() {
+            config.engine = document.getElementById('settings-engine').value;
+            config.geminiKey = document.getElementById('key-gemini').value;
+            config.groqKey = document.getElementById('key-groq').value;
+            config.localSoftware = document.getElementById('local-software').value;
+            config.localUrl = document.getElementById('local-url').value;
+            config.localModel = document.getElementById('local-model').value;
+
+            localStorage.setItem('math_engine', config.engine);
+            localStorage.setItem('math_gemini_key', config.geminiKey);
+            localStorage.setItem('math_groq_key', config.groqKey);
+            localStorage.setItem('math_local_software', config.localSoftware);
+            localStorage.setItem('math_local_url', config.localUrl);
+            localStorage.setItem('math_local_model', config.localModel);
+
+            updateConnectionStatus();
+            closeSettings();
+        }
+
+        function updateConnectionStatus() {
+            const indicator = document.getElementById('connection-status');
+            if (config.engine === 'local') {
+                indicator.innerHTML = `<span class="h-2 w-2 rounded-full bg-indigo-500 mr-2 animate-pulse"></span> Local (${config.localSoftware.toUpperCase()})`;
+            } else if (config.engine === 'custom') {
+                indicator.innerHTML = `<span class="h-2 w-2 rounded-full bg-amber-500 mr-2 animate-pulse"></span> Custom Keys (Cloud)`;
+            } else {
+                indicator.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span> Free Cloud (Matho API)`;
+            }
+        }
+    </script>
 </body>
 </html>
