@@ -142,15 +142,17 @@ async function askTutor(sessionId, message, customApiKey = null) {
     }
   }
 
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+    systemInstruction: SYSTEM_PROMPT
+  });
   const geminiHistory = history.map(msg => ({
     role: msg.role === 'user' ? 'user' : 'model',
     parts: [{ text: msg.content }]
   }));
 
   const chat = model.startChat({
-    history: geminiHistory,
-    systemInstruction: SYSTEM_PROMPT
+    history: geminiHistory
   });
 
   let finalUserMessage = message;
