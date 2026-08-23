@@ -1,88 +1,72 @@
 /**
- * Matho Web Server (server.js)
- * Serves the PWA web client and acts as a gateway proxy for Gemini + Wolfram Alpha + Groq.
+ * Matho Web Server (server-v4.js)
+ * Fully compatible with the user's ORIGINAL index.html.
+ * Maps POST /api/chat as expected by the frontend, routing standard messages
+ * to the Socratic Tutor and /solve messages to the DeepSeek R1 Solver.
  */
 
 const express = require('express');
 const path = require('path');
-const tutor = require('./tutor');
+const tutor = require('./tutor'); // Will load tutor.js from the same directory
 
-// Configure environment variables (loads .env if in local dev)
+// Load environment variables
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Enable JSON parser
 app.use(express.json());
 
-// Serve static web app assets from root
+// Serve static assets from root directory
 app.use(express.static(__dirname));
 
-// Serve files specifically from the root path
+// Serve index.html as fallback for root
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.get('/manifest.json', (req, res) => {
-  res.sendFile(path.join(__dirname, 'manifest.json'));
-});
-
-app.get('/service-worker.js', (req, res) => {
-  res.sendFile(path.join(__dirname, 'service-worker.js'));
-});
-
-// API Gateway Endpoints
-
-// 1. Socratic Tutor (Gemini + Wolfram Alpha)
-app.post('/api/chat/tutor', async (req, res) => {
+/**
+ * 1. UNIFIED CHAT ENDPOINT (POST /api/chat)
+ * This is the crucial endpoint your original index.html calls!
+ * It automatically detects if the message contains a "/solve" command.
+ */
+app.post('/api/chat', async (req, res) => {
   const { message, customApiKey } = req.body;
   if (!message) {
     return res.status(400).json({ error: "Empty message." });
   }
 
-  // Identify user session
-  const sessionId = req.headers['x-session-id'] || 'global-web-tutor-session';
+  // Session handling
+  const sessionId = req.headers['x-session-id'] || 'global-web-session';
 
   try {
-    const result = await tutor.askTutor(sessionId, message, customApiKey);
-    res.json(result);
+    const trimmedMessage = message.trim();
+
+    // If message starts with "/solve", route to the DeepSeek R1 solver
+    if (trimmedMessage.toLowerCase().startsWith('/solve')) {
+      // Remove the prefix "/solve" if the user supplied arguments after it
+      const actualQuery = trimmedMessage.substring(6).trim();
+      if (!actualQuery) {
+        return res.json({ response: "Please provide a math problem to solve after /solve. (e.g. /solve integrate x^2 from 0 to 1)" });
+      }
+      
+      const result = await tutor.solveDirect(sessionId, actualQuery, customApiKey);
+      return res.json({ response: result.response });
+    }
+
+    // Default: Route to Socratic Tutor (Gemini + Wolfram Alpha)
+    const result = await tutor.askTutor(sessionId, trimmedMessage, customApiKey);
+    return res.json({ response: result.response });
+
   } catch (error) {
-    console.error("Socratic Error:", error);
-    res.status(500).json({ error: error.message || "An error occurred during the call." });
+    console.error("Chat Server Error:", error);
+    res.status(500).json({ error: error.message || "An error occurred on the calculation server." });
   }
 });
 
-// 2. Direct Solver (Groq + DeepSeek R1)
-app.post('/api/chat/solve', async (req, res) => {
-  const { message, customApiKey } = req.body;
-  if (!message) {
-    return res.status(400).json({ error: "Empty message." });
-  }
-
-  const sessionId = req.headers['x-session-id'] || 'global-web-solve-session';
-
-  try {
-    const result = await tutor.solveDirect(sessionId, message, customApiKey);
-    res.json(result);
-  } catch (error) {
-    console.error("Direct Solve Error:", error);
-    res.status(500).json({ error: error.message || "An error occurred on the resolution API." });
-  }
-});
-
-// 3. Reset Session History
-app.post('/api/chat/reset', (req, res) => {
-  const tutorSession = 'global-web-tutor-session';
-  const solveSession = 'global-web-solve-session';
-  
-  tutor.clearHistory(tutorSession);
-  tutor.clearHistory(solveSession);
-  
-  res.json({ success: true, message: "History reset successfully." });
-});
-
-// 4. Generate New Exercise
+/**
+ * 2. EXERCISE ENDPOINTS (POST /api/exercise/new)
+ */
 app.post('/api/exercise/new', async (req, res) => {
   const { subject, difficulty, customApiKey } = req.body;
   try {
@@ -94,7 +78,9 @@ app.post('/api/exercise/new', async (req, res) => {
   }
 });
 
-// 5. Submit Exercise Response
+/**
+ * 3. EXERCISE EVALUATION (POST /api/exercise/submit)
+ */
 app.post('/api/exercise/submit', async (req, res) => {
   const { problem, userAnswer, correctAnswer, customApiKey } = req.body;
   try {
@@ -106,6 +92,15 @@ app.post('/api/exercise/submit', async (req, res) => {
   }
 });
 
+/**
+ * 4. CLEAR HISTORY
+ */
+app.post('/api/chat/reset', (req, res) => {
+  const sessionId = 'global-web-session';
+  tutor.clearHistory(sessionId);
+  res.json({ success: true, message: "History cleared." });
+});
+
 // Start listening
 app.listen(PORT, () => {
   console.log(`=========================================`);
@@ -113,3 +108,6 @@ app.listen(PORT, () => {
   console.log(`🌐 Web Application: http://localhost:${PORT}`);
   console.log(`=========================================`);
 });
+
+// CRITICAL FOR VERCEL SERVERLESS FUNCTIONS
+module.exports = app;
